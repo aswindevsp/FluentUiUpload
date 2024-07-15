@@ -1,0 +1,85 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, world!</h1>
+
+<FluentInputFile @ref="@myFileByBuffer"
+                 AnchorId="MyUploadBuffer"
+                 DragDropZoneVisible="false"
+                 Mode="InputFileMode.Buffer"
+                 Multiple="true"
+                 MaximumFileSize="@(1000 * 1024 * 1024)"
+                 Accept=".mp4, .mov, .avi"
+                 OnProgressChange="@OnProgressChangeAsync"
+                 OnCompleted="@OnCompleted"/>
+
+<FluentProgress Visible="@(progressPercent > 0)" Min="0" Max="100" Value="@progressPercent"/>
+<FluentLabel Alignment="HorizontalAlignment.Center">
+    @progressTitle
+</FluentLabel>
+
+@if (Files.Any())
+{
+    <FluentButton @onclick="Files.Clear">
+        Cancel
+    </FluentButton>
+}
+else
+{
+    <FluentButton Appearance="Appearance.Accent" Id="MyUploadBuffer">
+        Upload files
+    </FluentButton>
+}
+
+
+@if (Files.Any())
+{
+    <h4>File(s) uploaded:</h4>
+    <ul>
+        @foreach (var file in Files)
+        {
+            <li>
+                @file.Value
+            </li>
+        }
+    </ul>
+}
+
+@code
+{
+    FluentInputFile? myFileByBuffer = default!;
+    int? progressPercent;
+    string? progressTitle;
+    bool IsCanceled;
+
+    Dictionary<int, string> Files = new();
+
+
+    async Task OnProgressChangeAsync(FluentInputFileEventArgs file)
+    {
+        progressPercent = file.ProgressPercent;
+        progressTitle = file.ProgressTitle;
+
+        file.IsCancelled = IsCanceled;
+
+        if (!Files.ContainsKey(file.Index))
+        {
+            var localFile = Path.GetTempFileName() + file.Name;
+            Files.Add(file.Index, localFile);
+        }
+
+        await file.Buffer.AppendToFileAsync(Files[file.Index]);
+    }
+
+    void OnCompleted(IEnumerable<FluentInputFileEventArgs> files)
+    {
+        progressPercent = myFileByBuffer!.ProgressPercent;
+        progressTitle = myFileByBuffer!.ProgressTitle;
+
+        foreach (var file in Files)
+        {
+            File.Delete(file.Value);
+        }
+    }
+}
